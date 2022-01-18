@@ -3,19 +3,22 @@
 /**
  * Sends API requests to Open Platform.
  */
-class Open_API_Handler {
+class Open_API_Handler
+{
 
     /** @var string/array Log variable function. */
     public static $log;
+
     /**
      * Call the $log variable function.
      *
      * @param string $message Log message.
-     * @param string $level   Optional. Default 'info'.
+     * @param string $level Optional. Default 'info'.
      *     emergency|alert|critical|error|warning|notice|info|debug
      */
-    public static function log(string $message, string $level = 'info' ) {
-        return call_user_func( self::$log, $message, $level );
+    public static function log(string $message, string $level = 'info')
+    {
+        return call_user_func(self::$log, $message, $level);
     }
 
     /** @var string Open Platform API url. */
@@ -37,12 +40,12 @@ class Open_API_Handler {
      * @param string $method
      * @return array
      */
-    public static function send_request(string $endpoint, array $params = array(), string $method = 'GET' ): array
+    public static function send_request(string $endpoint, array $params = array(), string $method = 'GET'): array
     {
 
-        self::log( 'OpenApi Request Args for ' . $endpoint . ': ' . print_r( $params, true ) );
+        self::log('Open Platform Request Args for ' . $endpoint . ': ' . print_r($params, true));
         $args = array(
-            'method'  => $method,
+            'method' => $method,
             'headers' => array(
                 'X-API-KEY' => self::$api_key,
                 'X-API-SIGNATURE' => $params['hash'],
@@ -52,42 +55,41 @@ class Open_API_Handler {
 
         $url = self::$api_url . $endpoint;
 
-        if ( in_array( $method, array( 'POST', 'PUT' ) ) ) {
-            $args['body'] = json_encode( $params );
+        if (in_array($method, array('POST', 'PUT'))) {
+            $args['body'] = json_encode($params);
         } else {
-            $url = add_query_arg( $params, $url );
+            $url = add_query_arg($params, $url);
         }
-        $response = wp_remote_request( esc_url_raw( $url ), $args );
+        $response = wp_remote_request(esc_url_raw($url), $args);
 
-        if ( is_wp_error( $response ) ) {
-            self::log( 'WP response error: ' . $response->get_error_message() );
-            return array( false, $response->get_error_message() );
+        if (is_wp_error($response)) {
+            self::log('WP response error: ' . $response->get_error_message());
+            return array(false, $response->get_error_message());
         } else {
-            $result = json_decode( $response['body'], true );
+            $result = json_decode($response['body'], true);
 
             $code = $response['response']['code'];
 
-            if ( in_array( $code, array( 200, 201 ), true ) ) {
-                return array( true, $result );
+            if (in_array($code, array(200, 201), true)) {
+                return array(true, $result);
             } else {
-                $e      = empty( $result['error']['message'] ) ? '' : $result['error']['message'];
+                $e = empty($result['error']['message']) ? '' : $result['error']['message'];
                 $errors = array(
                     400 => 'Error response from API: ' . $e,
                     401 => 'Authentication error, please check your API key.'
                 );
 
-                if ( array_key_exists( $code, $errors ) ) {
-                    $msg = $errors[ $code ];
+                if (array_key_exists($code, $errors)) {
+                    $msg = $errors[$code];
                 } else {
                     $msg = 'Unknown response from API: ' . $code;
                 }
-                self::log( $msg );
+                self::log($msg);
 
-                return array( false, $code );
+                return array(false, $code);
             }
         }
     }
-
 
     /**
      * Create a new wallet address request.
@@ -100,9 +102,10 @@ class Open_API_Handler {
         $nonce = self::get_timestamp();
         $strForSign = "blockchain='{$blockchainType}'&timestamp='{$nonce}'";
         $args['blockchain'] = 'ETH';
-        $args['hash'] = hash_hmac('sha256', $strForSign , self::$secret_key);
+        $args['hash'] = hash_hmac('sha256', $strForSign, self::$secret_key);
         $args['timestamp'] = $nonce;
-        return self::send_request( 'wallet/generate', $args, 'POST' );
+        $args['metadata'] = $metadata;
+        return self::send_request('wallet/generate', $args, 'POST');
     }
 
     private static function get_timestamp(): int
