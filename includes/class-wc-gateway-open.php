@@ -309,6 +309,11 @@ class WC_Gateway_Open extends WC_Payment_Gateway
 
         $trimmedBody = trim(preg_replace('/\s+/', '', $request_body));
 
+        $timestamp = intval( $request_headers['HTTP_X_OPEN_WEBHOOK_TIMESTAMP'] );
+        if ( abs( $timestamp - time() ) > 5 * MINUTE_IN_SECONDS ) {
+            return false;
+        }
+
         $sig = $request_headers['HTTP_X_OPEN_WEBHOOK_SIGNATURE'];
         $secret = $this->get_option('secret_key');
 
