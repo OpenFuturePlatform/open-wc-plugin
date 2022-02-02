@@ -22,10 +22,7 @@ class Open_API_Handler
     }
 
     /** @var string Open Platform API url. */
-    public static $api_url = 'http://localhost:8080/public/api/v1/';
-
-    /** @var string Open Platform API version. */
-    public static $api_version = '2021-12-29';
+    public static $api_url = 'https://api/openfuture.io/public/api/v1/';
 
     /** @var string Open Platform API application access key. */
     public static $api_key;
@@ -101,14 +98,19 @@ class Open_API_Handler
         $blockchainType = 'ETH';
         $nonce = self::get_timestamp();
         $strForSign = "blockchain='{$blockchainType}'&timestamp='{$nonce}'";
-        $args['blockchain'] = 'ETH';
-        $args['hash'] = hash_hmac('sha256', $strForSign, self::$secret_key);
-        $args['timestamp'] = $nonce;
-        $args['metadata'] = $metadata;
+
+        $args = array(
+            'blockchain' => 'ETH',
+            'timestamp'  => $nonce,
+            'hash'       => hash_hmac('sha256', $strForSign, self::$secret_key),
+            'metadata'   => $metadata
+
+        );
+
         return self::send_request('wallet/generate', $args, 'POST');
     }
 
-    private static function get_timestamp(): int
+    public static function get_timestamp(): int
     {
         $currentDate = new DateTime();
         return $currentDate->getTimestamp();

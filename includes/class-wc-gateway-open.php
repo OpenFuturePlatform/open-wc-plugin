@@ -30,7 +30,6 @@ class WC_Gateway_Open extends WC_Payment_Gateway
     {
         $this->id = 'open';
         $this->has_fields = false;
-        //$this->order_button_text  = __( 'Proceed to Open', 'open' );
         $this->method_title = __('Open Platform', 'open');
         $this->method_description = __('A payment gateway that sends your customers to Open Platform.', 'open');
 
@@ -46,7 +45,6 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         self::$log_enabled = $this->debug;
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-        add_filter('woocommerce_order_data_store_cpt_get_orders_query', array($this, '_custom_query_var'), 10, 2);
         add_action('woocommerce_api_wc_gateway_open', array($this, 'handle_webhook'));
     }
 
@@ -186,7 +184,7 @@ class WC_Gateway_Open extends WC_Payment_Gateway
     }
 
     /**
-     * All payment icons
+     * All available blockchain icons
      * WC core icons.
      * @return array
      */
@@ -197,7 +195,7 @@ class WC_Gateway_Open extends WC_Payment_Gateway
             [
                 'btc'     => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/bitcoin.png" class="open-btc-icon open-icon" alt="Bitcoin" />',
                 'eth'     => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/ethereum.png" class="open-eth-icon open-icon" alt="Ethereum" />',
-                'bnb' => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/usdc.png" class="open-bnb-icon open-icon" alt="Binance" />',
+                'bnb'     => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/usdc.png" class="open-bnb-icon open-icon" alt="Binance" />',
             ]
         );
     }
@@ -213,13 +211,15 @@ class WC_Gateway_Open extends WC_Payment_Gateway
 
         $this->init_open_api_handler();
 
+        $paymentCurrency = $_POST['open_currency'];
         // Create a new wallet request.
         $metadata = array(
             'order_id' => $order->get_id(),
             'order_key' => $order->get_order_key(),
             'amount' => $order->get_total(),
+            'product_currency' => $order->get_currency(),
             'source' => 'woocommerce',
-            'currency' => $_POST['open_currency']
+            'payment_currency' => $paymentCurrency
         );
 
         $result = Open_API_Handler::create_wallet($metadata);
@@ -229,7 +229,8 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         }
 
         $order->update_status('wc-blockchain-pending', __('Open Platform payment detected, but awaiting blockchain confirmation.', 'open'));
-        $order->update_meta_data('_open_platform_address', $result[1]['address']);
+        $order->update_meta_data('_op_address', $result[1]['address']);
+        $order->update_meta_data('_op_currency', $paymentCurrency);
         $order->save();
 
         return array(
@@ -249,19 +250,18 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         // Check the status of non-archived Open orders.
         $orders = wc_get_orders(array('open_archived' => false, 'status' => array('wc-pending')));
         foreach ($orders as $order) {
-            $address = $order->get_meta('_open_platform_address');
+            $address = $order->get_meta('_op_address');
 
             usleep(300000);
-            $result = Open_API_Handler::send_request('charges/' . $address);
+            $result = Open_API_Handler::send_request('widget/transactions/address/' . $address);
 
             if (!$result[0]) {
                 self::log('Failed to fetch order updates for: ' . $order->get_id());
                 continue;
             }
 
-            $timeline = $result[1]['data']['timeline'];
-            self::log('Timeline: ' . print_r($timeline, true));
-            $this->_update_order_status($order, $timeline);
+            $data['status'] = 'PROCESSING';
+            $this->_update_order_status($order, $data);
         }
     }
 
@@ -279,9 +279,8 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         if (!empty($request_body) && $this->validate_webhook($request_headers, $request_body)) {
 
             $data = json_decode($request_body, true);
-            $event_data = $data['event']['data'];
 
-            $order_id = $event_data['metadata']['order_id'];
+            $order_id = $data['order_id'];
 
             global $error_message;
             if (!isset($order_id) || !wc_get_order($order_id)) {
@@ -290,7 +289,7 @@ class WC_Gateway_Open extends WC_Payment_Gateway
                 exit;
             }
 
-            $this->_update_order_status(wc_get_order($order_id), $event_data['timeline']);
+            $this->_update_order_status(wc_get_order($order_id), $data);
 
             exit;  // 200 response for acknowledgement.
         }
@@ -339,57 +338,28 @@ class WC_Gateway_Open extends WC_Payment_Gateway
     }
 
     /**
-     * Update the status of an order from a given timeline.
+     * Update the status of an order from a given transaction.
      * @param WC_Order $order
-     * @param array $timeline
+     * @param array $data
      */
-    public function _update_order_status(WC_Order $order, array $timeline)
+    public function _update_order_status(WC_Order $order, array $data)
     {
 
         $prev_status = $order->get_meta('_open_status');
 
-        $last_update = end($timeline);
-        $status = $last_update['status'];
+        $status = $data['status'];
 
         if ($status !== $prev_status) {
             $order->update_meta_data('_open_status', $status);
 
-            if ('COMPLETED' === $status) {
+            if ('PROCESSING' === $status){
                 $order->update_status('processing', __('Open payment was successfully processed.', 'open'));
+            }
+            else if ('COMPLETED' === $status) {
+                $order->update_status('completed', __('Open payment was successfully completed.', 'open'));
                 $order->payment_complete();
             }
         }
-
-        // Archive if in a resolved state and idle more than timeout.
-        if (in_array($status, array('EXPIRED', 'COMPLETED', 'RESOLVED'), true) &&
-            $order->get_date_modified() < $this->timeout) {
-            self::log('Archiving order: ' . $order->get_order_number());
-            $order->update_meta_data('_open_archived', true);
-        }
-    }
-
-    /**
-     * Handle a custom 'open_archived' query var to get orders
-     * paid through Open Platform with the '_open_archived' meta.
-     * @param array $query - Args for WP_Query.
-     * @param array $query_vars - Query vars from WC_Order_Query.
-     * @return array modified $query
-     */
-    public function _custom_query_var(array $query, array $query_vars): array
-    {
-        if (array_key_exists('open_archived', $query_vars)) {
-            $query['meta_query'][] = array(
-                'key' => '_open_archived',
-                'compare' => $query_vars['open_archived'] ? 'EXISTS' : 'NOT EXISTS',
-            );
-            // Limit only to orders paid through Open Platform.
-            $query['meta_query'][] = array(
-                'key' => '_open_address',
-                'compare' => 'EXISTS',
-            );
-        }
-
-        return $query;
     }
 
     /**

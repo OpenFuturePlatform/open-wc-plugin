@@ -29,7 +29,7 @@ function open_init_gateway()
         add_action('wp_enqueue_scripts', 'scripts');
         add_filter('woocommerce_payment_gateways', 'open_wc_add_open_class');
         add_filter('wc_order_statuses', 'open_wc_add_status');
-        add_action('woocommerce_admin_order_data_after_order_details', 'open_order_meta_general');
+        add_action('woocommerce_admin_order_data_after_order_details', 'open_order_admin_meta_general');
         add_action('woocommerce_order_details_after_order_table', 'open_order_meta_general');
     }
 }
@@ -129,34 +129,56 @@ function open_wc_add_status(array $wc_statuses_arr): array
 }
 
 /**
- * Add order Open meta after General and before Billing
+ * Add Admin Page order Open meta after General Billing
  *
- * @see: https://rudrastyh.com/woocommerce/customize-order-details.html
+ * @param WC_Order $order WC order instance
+ */
+function open_order_admin_meta_general(WC_Order $order)
+{
+    if ($order->get_payment_method() == 'open') {
+
+        $url = "https://ropsten.etherscan.io/address/{$order->get_meta('_op_address')}";
+
+        ?>
+        <br class="clear"/>
+        <h3>Open Platform Data</h3>
+        <div class="open">
+            <p>Open Wallet Address#</p>
+            <div class="open-qr" style="width: 100%">
+                <a href="<?php echo $url; ?>" target="_blank">
+                    <?php echo esc_html($order->get_meta('_op_address')); ?>
+                </a>
+            </div>
+        </div>
+        <br class="clear"/>
+        <?php
+    }
+}
+
+/**
+ * Add order Open meta after General and before Billing
  *
  * @param WC_Order $order WC order instance
  */
 function open_order_meta_general(WC_Order $order)
 {
-    $rate = binance_get_currency_live();
-    $currency_code = $order->get_currency();
-    $currency_symbol = get_woocommerce_currency_symbol($currency_code);
-
-    $ethAmount = $order->get_total() / $rate[1]['price'];
-    $url = "https://ropsten.etherscan.io/address/{$order->get_meta('_open_platform_address')}";
-    $address = $order->get_meta('_open_platform_address');
     if ($order->get_payment_method() == 'open') {
+
+        $address = $order->get_meta('_op_address');
+        $url = "https://ropsten.etherscan.io/address/{$address}";
+
         ?>
+
         <br class="clear"/>
         <h3>Open Platform Data</h3>
         <div class="open">
-            <p><?php echo esc_html($order->get_total()); ?><?php echo $currency_symbol; ?>
-                ≈ <?php echo esc_html($ethAmount); ?> ETH
             <p>Open Wallet Address#</p>
             <div class="open-qr" style="width: 100%">
                 <a href="<?php echo $url; ?>" target="_blank">
-                    <?php echo esc_html($order->get_meta('_open_platform_address')); ?>
+                    <?php echo esc_html($order->get_meta('_op_address')); ?>
                 </a>
-
+               <!-- <iframe src="https://api/openfuture.io/widget/transactions/address/<?php /*echo esc_html($order->get_meta('_op_address')); */?>" style="display:block"></iframe>
+-->
                 <div id="qrcode" style="width:128px; height:128px; margin-top:15px;"></div>
                 <script type="text/javascript">
                     const qrcode = new QRCode(document.getElementById("qrcode"), {
