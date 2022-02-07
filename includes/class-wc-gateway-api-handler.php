@@ -22,7 +22,7 @@ class Open_API_Handler
     }
 
     /** @var string Open Platform API url. */
-    public static $api_url = 'https://api/openfuture.io/public/api/v1/';
+    public static $api_url = 'https://api.openfuture.io/public/api/v1/';
 
     /** @var string Open Platform API application access key. */
     public static $api_key;
