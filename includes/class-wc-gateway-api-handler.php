@@ -22,7 +22,7 @@ class Open_API_Handler
     }
 
     /** @var string Open Platform API url. */
-    public static $api_url = 'https://api.openfuture.io/public/api/v1/';
+    public static $api_url = 'http://localhost:8080/public/api/v1/';
 
     /** @var string Open Platform API application access key. */
     public static $api_key;
@@ -37,7 +37,7 @@ class Open_API_Handler
      * @param string $method
      * @return array
      */
-    public static function send_request(string $endpoint, array $params = array(), string $method = 'GET'): array
+    public static function send_request(string $endpoint, string $hash, array $params = array(), string $method = 'GET'): array
     {
 
         self::log('Open Platform Request Args for ' . $endpoint . ': ' . print_r($params, true));
@@ -45,7 +45,7 @@ class Open_API_Handler
             'method' => $method,
             'headers' => array(
                 'X-API-KEY' => self::$api_key,
-                'X-API-SIGNATURE' => $params['hash'],
+                'X-API-SIGNATURE' => $hash,
                 'Content-Type' => 'application/json'
             )
         );
@@ -97,17 +97,16 @@ class Open_API_Handler
     {
         $blockchainType = 'ETH';
         $nonce = self::get_timestamp();
-        $strForSign = "blockchain='{$blockchainType}'&timestamp='{$nonce}'";
 
         $args = array(
-            'blockchain' => 'ETH',
-            'timestamp'  => $nonce,
-            'hash'       => hash_hmac('sha256', $strForSign, self::$secret_key),
-            'metadata'   => $metadata
-
+            'blockchain' => $blockchainType,
+            'timestamp' => $nonce,
+            'metadata' => $metadata
         );
 
-        return self::send_request('wallet/generate', $args, 'POST');
+        $sign = self::get_signature($args);
+
+        return self::send_request('wallet/generate', $sign, $args, 'POST');
     }
 
     public static function get_timestamp(): int
@@ -115,4 +114,19 @@ class Open_API_Handler
         $currentDate = new DateTime();
         return $currentDate->getTimestamp();
     }
+
+    public static function get_signature($args): string
+    {
+        // Signature with Metadata: currently we don't include it for simplicity
+        /*
+            ksort($args);
+            $jsonString = json_encode($args);
+            return hash_hmac('sha256', $jsonString, self::$secret_key);
+        */
+
+        // Signature without Metadata
+        $strForSign = "blockchain='{$args['blockchain']}'&timestamp='{$args['timestamp']}'";
+        return hash_hmac('sha256', $strForSign, self::$secret_key);
+    }
+
 }

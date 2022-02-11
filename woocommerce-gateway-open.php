@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plugin Name: WooCommerce OPEN Gateway
+ * Plugin Name: OPEN Platform Gateway
  * Plugin URI: https://openfuture.io/plugins/woocommerce-gateway-open/
  * Description: Blockchain address payment using OPEN Platform.
  * Author: OPEN Platform
@@ -11,7 +11,7 @@
  * Tested up to: 5.8
  * WC requires at least: 5.7
  * WC tested up to: 5.9
- * Text Domain: woocommerce-gateway-open
+ * Text Domain: open-platform-gateway
  */
 
 if (!defined('ABSPATH')) {
@@ -177,8 +177,6 @@ function open_order_meta_general(WC_Order $order)
                 <a href="<?php echo $url; ?>" target="_blank">
                     <?php echo esc_html($order->get_meta('_op_address')); ?>
                 </a>
-               <!-- <iframe src="https://api/openfuture.io/widget/transactions/address/<?php /*echo esc_html($order->get_meta('_op_address')); */?>" style="display:block"></iframe>
--->
                 <div id="qrcode" style="width:128px; height:128px; margin-top:15px;"></div>
                 <script type="text/javascript">
                     const qrcode = new QRCode(document.getElementById("qrcode"), {

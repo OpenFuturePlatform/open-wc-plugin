@@ -1,4 +1,4 @@
-# Open Platform Payment for WooCommerce
+# Open Platform Payment Gateway for WooCommerce
 
 A WooCommerce payment gateway that allows your customers to pay with cryptocurrency with Open Platform Integration
 
@@ -26,9 +26,13 @@ Description of the payment method on the checkout page
 
 ### Access Key / Secret Key
 
-Your Open Platform Access key. Available within the [Open Platform](https://api.openfuture.io/applications).
+Your Open Platform Access/Secret keys. Available within the [Open Platform](https://api.openfuture.io/applications).
 
 Using an API keys allows your website to periodically check Open Platform for payment confirmation.
+
+### Test mode
+
+If this is checked, gateway will use ropsten network as a blockchain
 
 ### Debug log
 

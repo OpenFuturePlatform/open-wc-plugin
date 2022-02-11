@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define( 'WC_OPEN_PLUGIN_URL', untrailingslashit( plugins_url( basename( plugin_dir_path( __FILE__ ) ), basename( __FILE__ ) ) ) );
+define('WC_OPEN_PLUGIN_URL', untrailingslashit(plugins_url(basename(plugin_dir_path(__FILE__)), basename(__FILE__))));
 
 /**
  * WC_Gateway_Open Class.
@@ -38,9 +38,11 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         $this->init_settings();
 
         // Define user set variables.
+        $this->enabled = $this->get_option( 'enabled' );
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->debug = 'yes' === $this->get_option('debug', 'no');
+        $this->testmode = 'yes' === $this->get_option( 'testmode' );
 
         self::$log_enabled = $this->debug;
 
@@ -115,6 +117,14 @@ class WC_Gateway_Open extends WC_Payment_Gateway
                     esc_url('https://api.openfuture.io/applications')
                 )
             ),
+            'testmode'                            => [
+                'title'       => __( 'Test mode', 'woocommerce' ),
+                'label'       => __( 'Enable Test Mode', 'open' ),
+                'type'        => 'checkbox',
+                'description' => __( 'Place the payment gateway in test mode using test API keys.', 'open' ),
+                'default'     => 'yes',
+                'desc_tip'    => true,
+            ],
             'webhook_secret' => array(
                 'title' => __('Webhook', 'open'),
                 'type' => 'text',
@@ -142,45 +152,36 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         }
         ob_start();
 
+
         echo '<div  class="open-fields" style="padding:10px 0;">';
 
-        woocommerce_form_field( 'open_currency', array(
-            'type'          => 'select',
-            'label'         => __("Choose Currency", "woocommerce"),
-            'class'         => array('form-row-wide'),
-            'required'      => true,
-            'options'       => array(
-                'BTC'  => __("BTC", "woocommerce"),
-                'ETH'  => __("ETH", "woocommerce"),
-                'BNB'  => __("BNB", "woocommerce"),
-            ),
-        ), '');
+        if ($this->testmode){
+            woocommerce_form_field('open_currency', array(
+                'type' => 'select',
+                'label' => __("Choose Test Network", "woocommerce"),
+                'class' => array('form-row-wide'),
+                'required' => true,
+                'options' => array(
+                    'ETH' => __("ETH Ropsten", "woocommerce")
+                ),
+            ), '');
+        } else {
+            woocommerce_form_field('open_currency', array(
+                'type' => 'select',
+                'label' => __("Choose Currency", "woocommerce"),
+                'class' => array('form-row-wide'),
+                'required' => true,
+                'options' => array(
+                    'BTC' => __("BTC", "woocommerce"),
+                    'ETH' => __("ETH", "woocommerce"),
+                    'BNB' => __("BNB", "woocommerce"),
+                ),
+            ), '');
+        }
 
         echo '<div>';
 
         ob_end_flush();
-    }
-
-    /**
-     * Renders the Open elements form.
-     *
-     */
-    public function elements_form()
-    {
-        ?>
-        <fieldset id="wc-<?php echo esc_attr($this->id); ?>-cc-form" class="wc-open-form wc-payment-form"
-                  style="background:transparent;">
-            <div class="form-row form-row-wide">
-                <label for="open_currency">Choose Currency</label>
-                <select class="form-row form-row-wide" name="open_currency" id="open_currency">
-                    <option value="ETH">ETH</option>
-                    <option value="BTC">BTC</option>
-                    <option value="BNB">BNB</option>
-                </select>
-            </div>
-            <div class="clear"></div>
-        </fieldset>
-        <?php
     }
 
     /**
@@ -193,9 +194,9 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         return apply_filters(
             'wc_open_payment_icons',
             [
-                'btc'     => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/bitcoin.png" class="open-btc-icon open-icon" alt="Bitcoin" />',
-                'eth'     => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/ethereum.png" class="open-eth-icon open-icon" alt="Ethereum" />',
-                'bnb'     => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/usdc.png" class="open-bnb-icon open-icon" alt="Binance" />',
+                'btc' => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/bitcoin.png" class="open-btc-icon open-icon" alt="Bitcoin" />',
+                'eth' => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/ethereum.png" class="open-eth-icon open-icon" alt="Ethereum" />',
+                'bnb' => '<img src="' . WC_OPEN_PLUGIN_URL . '/assets/images/usdc.png" class="open-bnb-icon open-icon" alt="Binance" />',
             ]
         );
     }
@@ -214,12 +215,13 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         $paymentCurrency = $_POST['open_currency'];
         // Create a new wallet request.
         $metadata = array(
-            'order_id' => $order->get_id(),
-            'order_key' => $order->get_order_key(),
             'amount' => $order->get_total(),
-            'product_currency' => $order->get_currency(),
+            'orderId' => $order->get_id(),
+            'orderKey' => $order->get_order_key(),
+            'paymentCurrency' => $paymentCurrency,
+            'productCurrency' => $order->get_currency(),
             'source' => 'woocommerce',
-            'payment_currency' => $paymentCurrency
+            'test' => $this->testmode
         );
 
         $result = Open_API_Handler::create_wallet($metadata);
@@ -308,8 +310,11 @@ class WC_Gateway_Open extends WC_Payment_Gateway
 
         $trimmedBody = trim(preg_replace('/\s+/', '', $request_body));
 
-        $timestamp = intval( $request_headers['HTTP_X_OPEN_WEBHOOK_TIMESTAMP'] );
-        if ( abs( $timestamp - time() ) > 5 * MINUTE_IN_SECONDS ) {
+        self::log('Incoming webhook body: '.$trimmedBody);
+
+        $timestamp = intval($request_headers['HTTP_X_OPEN_WEBHOOK_TIMESTAMP']);
+
+        if (abs($timestamp - time()) > 5 * MINUTE_IN_SECONDS) {
             return false;
         }
 
@@ -352,10 +357,9 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         if ($status !== $prev_status) {
             $order->update_meta_data('_open_status', $status);
 
-            if ('PROCESSING' === $status){
+            if ('PROCESSING' === $status) {
                 $order->update_status('processing', __('Open payment was successfully processed.', 'open'));
-            }
-            else if ('COMPLETED' === $status) {
+            } else if ('COMPLETED' === $status) {
                 $order->update_status('completed', __('Open payment was successfully completed.', 'open'));
                 $order->payment_complete();
             }
