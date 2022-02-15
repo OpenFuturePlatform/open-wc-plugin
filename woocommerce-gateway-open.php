@@ -177,7 +177,10 @@ function open_order_meta_general(WC_Order $order)
                 <a href="<?php echo $url; ?>" target="_blank">
                     <?php echo esc_html($order->get_meta('_op_address')); ?>
                 </a>
-                <div id="qrcode" style="width:128px; height:128px; margin-top:15px;"></div>
+                <iframe src="https://api.openfuture.io/widget/transactions/address/<?php echo esc_html($order->get_meta('_op_address'));  ?>" style="border:0px #ffffff none;" name="openPaymentTrackWidget"  height="360px" width="640px" allowfullscreen></iframe>
+                <div id="qrcode" style="width:128px; height:128px; margin-top:15px;">
+
+                </div>
                 <script type="text/javascript">
                     const qrcode = new QRCode(document.getElementById("qrcode"), {
                         width: 128,
