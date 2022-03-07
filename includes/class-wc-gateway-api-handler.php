@@ -95,12 +95,10 @@ class Open_API_Handler
      */
     public static function create_wallet($metadata = null): array
     {
-        $blockchainType = 'ETH';
         $nonce = self::get_timestamp();
 
         $args = array(
-            'blockchain' => $blockchainType,
-            'timestamp' => $nonce,
+            'timestamp' => strval($nonce),
             'metadata' => $metadata
         );
 
@@ -117,16 +115,8 @@ class Open_API_Handler
 
     public static function get_signature($args): string
     {
-        // Signature with Metadata: currently we don't include it for simplicity
-        /*
-            ksort($args);
-            $jsonString = json_encode($args);
-            return hash_hmac('sha256', $jsonString, self::$secret_key);
-        */
-
-        // Signature without Metadata
-        $strForSign = "blockchain='{$args['blockchain']}'&timestamp='{$args['timestamp']}'";
-        return hash_hmac('sha256', $strForSign, self::$secret_key);
+        $jsonString = json_encode($args);
+        return hash_hmac('sha256', $jsonString, self::$secret_key);
     }
 
 }

@@ -4,8 +4,8 @@ Plugin URL: https://commerce.openfuture.io/
 Tags: open, payment, woo, woocommerce, ecommerce, bitcoin, ethereum, blockchain, crypto, cryptocurrency
 Requires at least: 3.0
 Requires PHP: 5.6
-Tested up to: 5.2
-Stable tag: 1.1.4
+Tested up to: 5.9
+Stable tag: 1.0.0
 License: GPLv2 or later
 
 == Description ==
@@ -71,4 +71,4 @@ To use this plugin with your WooCommerce store you will need:
 == Changelog ==
 
 = 1.0.0 =
-* Coinbase Commerce
+* Open Platform

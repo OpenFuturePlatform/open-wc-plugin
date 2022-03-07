@@ -8,8 +8,8 @@
  * Author URI: https://openfuture.io/
  * Version: 1.0.0
  * Requires at least: 5.6
- * Tested up to: 5.8
- * WC requires at least: 5.7
+ * Tested up to: 5.9
+ * WC requires at least: 5.9
  * WC tested up to: 5.9
  * Text Domain: open-platform-gateway
  */
@@ -18,49 +18,47 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-function open_init_gateway()
-{
+if ( ! function_exists( 'open_init_gateway' ) ){
 
-    if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
-        require_once 'includes/class-wc-gateway-open.php';
-        add_action('init', 'open_wc_register_blockchain_status');
-        add_filter('woocommerce_valid_order_statuses_for_payment', 'open_wc_status_valid_for_payment', 10, 2);
-        add_action('open_check_orders', 'open_wc_check_orders');
-        add_action('wp_enqueue_scripts', 'scripts');
-        add_filter('woocommerce_payment_gateways', 'open_wc_add_open_class');
-        add_filter('wc_order_statuses', 'open_wc_add_status');
-        add_action('woocommerce_admin_order_data_after_order_details', 'open_order_admin_meta_general');
-        add_action('woocommerce_order_details_after_order_table', 'open_order_meta_general');
+    function open_init_gateway()
+    {
+
+        if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
+            require_once 'includes/class-wc-gateway-open.php';
+            add_action('init', 'open_wc_register_blockchain_status');
+            add_filter('woocommerce_valid_order_statuses_for_payment', 'open_wc_status_valid_for_payment', 10, 2);
+            add_action('open_check_orders', 'open_wc_check_orders');
+            add_action('wp_enqueue_scripts', 'scripts');
+            add_filter('woocommerce_payment_gateways', 'open_wc_add_open_class');
+            add_filter('wc_order_statuses', 'open_wc_add_status');
+            add_action('woocommerce_admin_order_data_after_order_details', 'open_order_admin_meta_general');
+            add_action('woocommerce_order_details_after_order_table', 'open_order_meta_general');
+        }
     }
 }
 
 add_action('plugins_loaded', 'open_init_gateway');
 
 // Used for checking payment at background
-function open_activation()
+function op_activation()
 {
     if (!wp_next_scheduled('open_check_orders')) {
         wp_schedule_event(time(), 'hourly', 'open_check_orders');
     }
 }
 
-register_activation_hook(__FILE__, 'open_activation');
+register_activation_hook(__FILE__, 'op_activation');
 
-function open_deactivation()
+function op_deactivation()
 {
     wp_clear_scheduled_hook('open_check_orders');
 }
 
-register_deactivation_hook(__FILE__, 'open_deactivation');
+register_deactivation_hook(__FILE__, 'op_deactivation');
 
 // Script for showing QRCode
 function scripts()
 {
-    wp_enqueue_script(
-        'jquery',
-        plugins_url('js/jquery.min.js#deferload', __FILE__),
-        array('jquery')
-    );
     wp_enqueue_script(
         'qrcode',
         plugins_url('js/qrcode.min.js#deferload', __FILE__),
@@ -137,17 +135,18 @@ function open_order_admin_meta_general(WC_Order $order)
 {
     if ($order->get_payment_method() == 'open') {
 
-        $url = "https://ropsten.etherscan.io/address/{$order->get_meta('_op_address')}";
-
+        $addresses = $order->get_meta('_op_address');
         ?>
         <br class="clear"/>
         <h3>Open Platform Data</h3>
         <div class="open">
             <p>Open Wallet Address#</p>
             <div class="open-qr" style="width: 100%">
-                <a href="<?php echo $url; ?>" target="_blank">
-                    <?php echo esc_html($order->get_meta('_op_address')); ?>
-                </a>
+                <?php
+                    foreach ($addresses as $address){
+                        echo $address['address'];
+                    }
+                ?>
             </div>
         </div>
         <br class="clear"/>
@@ -164,8 +163,7 @@ function open_order_meta_general(WC_Order $order)
 {
     if ($order->get_payment_method() == 'open') {
 
-        $address = $order->get_meta('_op_address');
-        $url = "https://ropsten.etherscan.io/address/{$address}";
+        $url = WC_Gateway_Open::generate_open_url($order)
 
         ?>
 
@@ -174,20 +172,7 @@ function open_order_meta_general(WC_Order $order)
         <div class="open">
             <p>Open Wallet Address#</p>
             <div class="open-qr" style="width: 100%">
-                <a href="<?php echo $url; ?>" target="_blank">
-                    <?php echo esc_html($order->get_meta('_op_address')); ?>
-                </a>
-                <iframe src="https://api.openfuture.io/widget/transactions/address/<?php echo esc_html($order->get_meta('_op_address'));  ?>" style="border:0px #ffffff none;" name="openPaymentTrackWidget"  height="360px" width="640px" allowfullscreen></iframe>
-                <div id="qrcode" style="width:128px; height:128px; margin-top:15px;">
-
-                </div>
-                <script type="text/javascript">
-                    const qrcode = new QRCode(document.getElementById("qrcode"), {
-                        width: 128,
-                        height: 128
-                    });
-                    qrcode.makeCode("<?php echo $address; ?>");
-                </script>
+                <iframe src="<?php echo esc_url($url); ?>" style="border:0px #ffffff none;" name="openPaymentTrackWidget"  height="360px" width="640px" allowfullscreen></iframe>
             </div>
         </div>
         <br class="clear"/>

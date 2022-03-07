@@ -117,14 +117,27 @@ class WC_Gateway_Open extends WC_Payment_Gateway
                     esc_url('https://api.openfuture.io/applications')
                 )
             ),
-            'testmode'                            => [
+            'testmode'                            => array(
                 'title'       => __( 'Test mode', 'woocommerce' ),
                 'label'       => __( 'Enable Test Mode', 'open' ),
                 'type'        => 'checkbox',
                 'description' => __( 'Place the payment gateway in test mode using test API keys.', 'open' ),
                 'default'     => 'yes',
                 'desc_tip'    => true,
-            ],
+            ),
+            'blockchains' => array(
+                'title' => __('Blockchains', 'woocommerce'),
+                'type' => 'multiselect',
+                'description' => __('Choose your accepted blockchains', 'woocommerce'),
+                'default'     => 'btc',
+                'desc_tip'    => true,
+                'options'     => array(
+                    'BTC'       => __( 'Bitcoin', 'woocommerce' ),
+                    'ETH'       => __( 'Ethereum', 'woocommerce' ),
+                    'BNB'       => __( 'Binance', 'woocommerce' )
+                )
+
+            ),
             'webhook_secret' => array(
                 'title' => __('Webhook', 'open'),
                 'type' => 'text',
@@ -150,43 +163,11 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         if ($description = $this->get_description()) {
             echo wpautop(wptexturize($description));
         }
-        ob_start();
 
-
-        echo '<div  class="open-fields" style="padding:10px 0;">';
-
-        if ($this->testmode){
-            woocommerce_form_field('open_currency', array(
-                'type' => 'select',
-                'label' => __("Choose Test Network", "woocommerce"),
-                'class' => array('form-row-wide'),
-                'required' => true,
-                'options' => array(
-                    'ETH' => __("ETH Ropsten", "woocommerce")
-                ),
-            ), '');
-        } else {
-            woocommerce_form_field('open_currency', array(
-                'type' => 'select',
-                'label' => __("Choose Currency", "woocommerce"),
-                'class' => array('form-row-wide'),
-                'required' => true,
-                'options' => array(
-                    'BTC' => __("BTC", "woocommerce"),
-                    'ETH' => __("ETH", "woocommerce"),
-                    'BNB' => __("BNB", "woocommerce"),
-                ),
-            ), '');
-        }
-
-        echo '<div>';
-
-        ob_end_flush();
     }
 
     /**
      * All available blockchain icons
-     * WC core icons.
      * @return array
      */
     public function payment_icons(): array
@@ -212,11 +193,12 @@ class WC_Gateway_Open extends WC_Payment_Gateway
 
         $this->init_open_api_handler();
 
-        $paymentCurrency = $_POST['open_currency'];
+        $paymentCurrency = $this->get_option('blockchains');
+
         // Create a new wallet request.
         $metadata = array(
-            'amount' => $order->get_total(),
-            'orderId' => $order->get_id(),
+            'amount' => strval($order->get_total()),
+            'orderId' => strval($order->get_id()),
             'orderKey' => $order->get_order_key(),
             'paymentCurrency' => $paymentCurrency,
             'productCurrency' => $order->get_currency(),
@@ -231,13 +213,13 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         }
 
         $order->update_status('wc-blockchain-pending', __('Open Platform payment detected, but awaiting blockchain confirmation.', 'open'));
-        $order->update_meta_data('_op_address', $result[1]['address']);
+        $order->update_meta_data('_op_address', $result);
         $order->update_meta_data('_op_currency', $paymentCurrency);
         $order->save();
 
         return array(
-            'result' => 'success',
-            'redirect' => $this->get_return_url($order),
+            'result' 	=> 'success',
+            'redirect'	=> $this->generate_open_url($order),
         );
     }
 
@@ -386,5 +368,28 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         } else {
             return getallheaders();
         }
+    }
+
+    public static function get_open_args( $order ) {
+
+        $op_args = array(
+            'amount'                => $order->get_total(),
+            'orderId'               => $order->get_id(),
+            'currency' 		        => $order->get_currency(),
+        );
+
+        return apply_filters( 'woocommerce_op_args', $op_args );
+    }
+
+    public static function generate_open_url($order): string
+    {
+        if ( $order->get_status() != 'completed' ) {
+            $order->update_status('pending', 'Customer is being redirected to OpenPlatform...');
+        }
+
+        $op_adr  = "https://api.openfuture.io/widget/payment/order/".$order->get_order_key()."?";
+        $op_args = self::get_open_args($order);
+        $op_adr .= http_build_query( $op_args, '', '&' );
+        return $op_adr;
     }
 }
