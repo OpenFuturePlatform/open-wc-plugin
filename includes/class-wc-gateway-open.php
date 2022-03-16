@@ -154,17 +154,6 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         );
     }
 
-    /**
-     * Payment form on checkout page
-     */
-    public function payment_fields()
-    {
-
-        if ($description = $this->get_description()) {
-            echo wpautop(wptexturize($description));
-        }
-
-    }
 
     /**
      * All available blockchain icons

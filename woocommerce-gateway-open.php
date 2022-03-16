@@ -18,46 +18,46 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-if ( ! function_exists( 'open_init_gateway' ) ){
+if ( ! function_exists( 'oppg_init_gateway' ) ){
 
-    function open_init_gateway()
+    function oppg_init_gateway()
     {
 
         if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
             require_once 'includes/class-wc-gateway-open.php';
-            add_action('init', 'open_wc_register_blockchain_status');
-            add_filter('woocommerce_valid_order_statuses_for_payment', 'open_wc_status_valid_for_payment', 10, 2);
-            add_action('open_check_orders', 'open_wc_check_orders');
-            add_action('wp_enqueue_scripts', 'scripts');
-            add_filter('woocommerce_payment_gateways', 'open_wc_add_open_class');
-            add_filter('wc_order_statuses', 'open_wc_add_status');
-            add_action('woocommerce_admin_order_data_after_order_details', 'open_order_admin_meta_general');
-            add_action('woocommerce_order_details_after_order_table', 'open_order_meta_general');
+            add_action('init', 'oppg_wc_register_blockchain_status');
+            add_filter('woocommerce_valid_order_statuses_for_payment', 'oppg_wc_status_valid_for_payment', 10, 2);
+            add_action('open_check_orders', 'oppg_wc_check_orders');
+            add_action('wp_enqueue_scripts', 'oppg_scripts');
+            add_filter('woocommerce_payment_gateways', 'oppg_wc_add_open_class');
+            add_filter('wc_order_statuses', 'oppg_wc_add_status');
+            add_action('woocommerce_admin_order_data_after_order_details', 'oppg_order_admin_meta_general');
+            add_action('woocommerce_order_details_after_order_table', 'oppg_order_meta_general');
         }
     }
 }
 
-add_action('plugins_loaded', 'open_init_gateway');
+add_action('plugins_loaded', 'oppg_init_gateway');
 
 // Used for checking payment at background
-function op_activation()
+function oppg_activation()
 {
     if (!wp_next_scheduled('open_check_orders')) {
         wp_schedule_event(time(), 'hourly', 'open_check_orders');
     }
 }
 
-register_activation_hook(__FILE__, 'op_activation');
+register_activation_hook(__FILE__, 'oppg__activation');
 
-function op_deactivation()
+function oppg_deactivation()
 {
     wp_clear_scheduled_hook('open_check_orders');
 }
 
-register_deactivation_hook(__FILE__, 'op_deactivation');
+register_deactivation_hook(__FILE__, 'oppg__deactivation');
 
 // Script for showing QRCode
-function scripts()
+function oppg_scripts()
 {
     wp_enqueue_script(
         'qrcode',
@@ -72,13 +72,13 @@ function scripts()
 }
 
 // WooCommerce
-function open_wc_add_open_class($methods)
+function oppg_wc_add_open_class($methods)
 {
     $methods[] = 'WC_Gateway_Open';
     return $methods;
 }
 
-function open_wc_check_orders()
+function oppg_wc_check_orders()
 {
     $gateway = WC()->payment_gateways()->payment_gateways()['open'];
     return $gateway->check_orders();
@@ -87,7 +87,7 @@ function open_wc_check_orders()
 /**
  * Register new status with ID "wc-blockchain-pending" and label "Blockchain Pending"
  */
-function open_wc_register_blockchain_status()
+function oppg_wc_register_blockchain_status()
 {
     register_post_status('wc-blockchain-pending', array(
         'label' => __('Blockchain Pending', 'open'),
@@ -100,7 +100,7 @@ function open_wc_register_blockchain_status()
 /**
  * Register wc-blockchain-pending status as valid for payment.
  */
-function open_wc_status_valid_for_payment($statuses, $order)
+function oppg_wc_status_valid_for_payment($statuses, $order)
 {
     $statuses[] = 'wc-blockchain-pending';
     return $statuses;
@@ -110,7 +110,7 @@ function open_wc_status_valid_for_payment($statuses, $order)
  * Add registered status to list of WC Order statuses
  * @param array $wc_statuses_arr Array of all order statuses on the website.
  */
-function open_wc_add_status(array $wc_statuses_arr): array
+function oppg_wc_add_status(array $wc_statuses_arr): array
 {
     $new_statuses_arr = array();
 
@@ -131,11 +131,12 @@ function open_wc_add_status(array $wc_statuses_arr): array
  *
  * @param WC_Order $order WC order instance
  */
-function open_order_admin_meta_general(WC_Order $order)
+function oppg_order_admin_meta_general(WC_Order $order)
 {
     if ($order->get_payment_method() == 'open') {
 
-        $addresses = $order->get_meta('_op_address');
+        $addresses = $order->get_meta('_op_address')[1];
+
         ?>
         <br class="clear"/>
         <h3>Open Platform Data</h3>
@@ -144,7 +145,7 @@ function open_order_admin_meta_general(WC_Order $order)
             <div class="open-qr" style="width: 100%">
                 <?php
                     foreach ($addresses as $address){
-                        echo $address['address'];
+                        echo esc_textarea($address['blockchain'].":".$address['address'])."</br>";
                     }
                 ?>
             </div>
@@ -159,7 +160,7 @@ function open_order_admin_meta_general(WC_Order $order)
  *
  * @param WC_Order $order WC order instance
  */
-function open_order_meta_general(WC_Order $order)
+function oppg_order_meta_general(WC_Order $order)
 {
     if ($order->get_payment_method() == 'open') {
 
@@ -177,24 +178,5 @@ function open_order_meta_general(WC_Order $order)
         </div>
         <br class="clear"/>
         <?php
-    }
-}
-
-function binance_get_currency_live(): array
-{
-    $args = array(
-        'method' => "GET",
-        'headers' => array(
-            'Content-Type' => 'application/json'
-        )
-    );
-
-    $url = "https://api.binance.com/api/v3/avgPrice?symbol=ETHBUSD";
-    $response = wp_remote_request(esc_url_raw($url), $args);
-    if (is_wp_error($response)) {
-        return array(false, $response->get_error_message());
-    } else {
-        $result = json_decode($response['body'], true);
-        return array(true, $result);
     }
 }
