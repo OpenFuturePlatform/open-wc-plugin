@@ -8,9 +8,9 @@
  * Author URI: https://openfuture.io/
  * Version: 1.0.0
  * Requires at least: 5.6
- * Tested up to: 5.9
- * WC requires at least: 5.9
- * WC tested up to: 5.9
+ * Tested up to: 6.1.1
+ * WC requires at least: 6.1.1
+ * WC tested up to: 6.1.1
  * Text Domain: open-platform-gateway
  */
 
@@ -56,7 +56,7 @@ function oppg_deactivation()
 
 register_deactivation_hook(__FILE__, 'oppg__deactivation');
 
-// Script for showing QRCode
+
 function oppg_scripts()
 {
     wp_enqueue_script(
@@ -67,6 +67,11 @@ function oppg_scripts()
     wp_enqueue_script(
         'clipboard',
         plugins_url('js/clipboard.min.js#deferload', __FILE__),
+        array('jquery')
+    );
+    wp_enqueue_script(
+        'sweetalert',
+        plugins_url('js/sweetalert.min.js#deferload', __FILE__),
         array('jquery')
     );
 }
@@ -144,6 +149,7 @@ function oppg_order_admin_meta_general(WC_Order $order)
             <p>Open Wallet Address#</p>
             <div class="open-qr" style="width: 100%">
                 <?php
+                echo time();
                     foreach ($addresses as $address){
                         echo esc_textarea($address['blockchain'].":".$address['address'])."</br>";
                     }

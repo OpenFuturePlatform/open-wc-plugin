@@ -98,13 +98,31 @@ class Open_API_Handler
         $nonce = self::get_timestamp();
 
         $args = array(
+            'timestamp' => strval($nonce)
+        );
+
+        $sign = self::get_signature($args);
+
+        return self::send_request('wallet/process', $sign, $args, 'POST');
+    }
+
+     /**
+     * Get application wallets
+     * @param $metadata
+     * @return array
+     */
+    public static function get_wallet($metadata = null): array
+    {
+        $nonce = self::get_timestamp();
+
+        $args = array(
             'timestamp' => strval($nonce),
             'metadata' => $metadata
         );
 
         $sign = self::get_signature($args);
 
-        return self::send_request('wallet/generate', $sign, $args, 'POST');
+        return self::send_request('wallet/process', $sign, $args, 'POST');
     }
 
     public static function get_timestamp(): int
@@ -118,5 +136,4 @@ class Open_API_Handler
         $jsonString = json_encode($args);
         return hash_hmac('sha256', $jsonString, self::$secret_key);
     }
-
 }

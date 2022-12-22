@@ -38,11 +38,23 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         $this->init_settings();
 
         // Define user set variables.
-        $this->enabled = $this->get_option( 'enabled' );
+        $this->enabled = $this->get_option('enabled');
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->debug = 'yes' === $this->get_option('debug', 'no');
-        $this->testmode = 'yes' === $this->get_option( 'testmode' );
+        $this->testmode = 'yes' === $this->get_option('testmode');
+        $this->clientManaged = 'yes' === $this->get_option('client_managed');
+        $this->clientPassword = $this->get_option('client_password');
+
+		$this->wallet_details = get_option(
+			'woocommerce_open_wallets',
+			array(
+				array(
+					'account_name'   => $this->get_option( 'account_name' ),
+					'account_number' => $this->get_option( 'account_number' ),
+				),
+			)
+		);
 
         self::$log_enabled = $this->debug;
 
@@ -117,11 +129,24 @@ class WC_Gateway_Open extends WC_Payment_Gateway
                     esc_url('https://api.openfuture.io/applications')
                 )
             ),
-            'testmode'                            => array(
-                'title'       => __( 'Test mode', 'woocommerce' ),
-                'label'       => __( 'Enable Test Mode', 'open' ),
+            'client_managed' => array(
+                'title'       => __('Customer Managed', 'woocommerce'),
+                'label'       => __('Enable encrypted password', 'open'),
                 'type'        => 'checkbox',
-                'description' => __( 'Place the payment gateway in test mode using test API keys.', 'open' ),
+                'default'     => 'yes',
+                'desc_tip'    => true,
+            ),
+            'client_password' => array(
+                'title' => __('Master password', 'open'),
+                'type' => 'text',
+                'default' => '',
+                'description' => 'Client encryption password',
+            ),
+            'testmode' => array(
+                'title'       => __('Test mode', 'woocommerce'),
+                'label'       => __('Enable Test Mode', 'open'),
+                'type'        => 'checkbox',
+                'description' => __('Place the payment gateway in test mode using test API keys.', 'open'),
                 'default'     => 'yes',
                 'desc_tip'    => true,
             ),
@@ -132,9 +157,9 @@ class WC_Gateway_Open extends WC_Payment_Gateway
                 'default'     => 'btc',
                 'desc_tip'    => true,
                 'options'     => array(
-                    'BTC'       => __( 'Bitcoin', 'woocommerce' ),
-                    'ETH'       => __( 'Ethereum', 'woocommerce' ),
-                    'BNB'       => __( 'Binance', 'woocommerce' )
+                    'BTC'       => __('Bitcoin', 'woocommerce'),
+                    'ETH'       => __('Ethereum', 'woocommerce'),
+                    'BNB'       => __('Binance', 'woocommerce')
                 )
 
             ),
@@ -151,9 +176,107 @@ class WC_Gateway_Open extends WC_Payment_Gateway
                 'default' => 'no',
                 'description' => sprintf(__('Log OPEN API events inside %s', 'open'), '<code>' . WC_Log_Handler_File::get_log_file_path('open') . '</code>'),
             ),
+            'wallet_details' => array(
+				'type' => 'wallet_details',
+			),
         );
     }
 
+    /**
+	 * Generate open wallet details html.
+	 *
+	 * @return string
+	 */
+	public function generate_wallet_details_html() {
+
+		ob_start();
+
+		?>
+		<tr valign="top">
+			<th scope="row" class="titledesc"><?php esc_html_e( 'Wallet details:', 'woocommerce' ); ?></th>
+			<td class="forminp" id="open_wallets">
+				<div class="wc_input_table_wrapper">
+					<table class="widefat wc_input_table sortable" cellspacing="0">
+						<thead>
+							<tr>
+                                <th><?php esc_html_e( 'Blockchain', 'woocommerce' ); ?></th>
+								<th><?php esc_html_e( 'Wallet Address', 'woocommerce' ); ?></th>
+								<th><?php esc_html_e( 'Wallet Type', 'woocommerce' ); ?></th>
+                                <th></th>
+								
+							</tr>
+						</thead>
+						<tbody class="wallets">
+							
+						</tbody>
+						<tfoot>
+							<tr>
+								<th colspan="7"><a href="#" class="get button"><?php esc_html_e( 'Get Wallets', 'woocommerce' ); ?></a></th>
+							</tr>
+						</tfoot>
+					</table>
+				</div>
+				<script type="text/javascript">
+					jQuery(function() {
+						jQuery('#open_wallets').on( 'click', 'a.get', function(){
+
+                            var openKey = jQuery('#woocommerce_open_api_key').val();
+                            var openSecret = jQuery('#woocommerce_open_secret_key').val();
+
+                            if(openKey == null || openSecret == null){
+                                alert("Open Key and Secret Required");
+                            }
+                            
+                            jQuery('#open_wallets table tbody tr').remove();
+                            
+                            jQuery.ajax({
+                                url: "https://api.openfuture.io/public/api/v1/wallet",
+                                contentType: 'application/json',
+                                headers: { 
+                                    'Access-Control-Allow-Credentials' : true,
+                                    'Access-Control-Allow-Origin':'*',
+                                    'Access-Control-Allow-Methods':'GET',
+                                    'Access-Control-Allow-Headers':'application/json',
+                                    'X-API-KEY':  openKey 
+                                },         
+                                type : 'GET'
+                                })
+                                .done(function( data ) {
+                                    console.log(data)
+                                    data.forEach(wallet => {
+                                        var index = 0;
+                                            
+                                        jQuery('<tr class="account">\
+                                            <td><input type="text" disabled name="blockchain[' + index + ']" value="'+wallet['blockchain']+'"/></td>\
+                                            <td><input type="text" disabled name="address[' + index + ']" value="'+wallet['address']+'"/></td>\
+                                            <td><input type="text" disabled name="type[' + index + ']" value="'+wallet['walletType']+'"/></td>\
+                                            <td><button class="transfer button" id="open_transfer">Transfer</button></td>\
+                                        </tr>').appendTo('#open_wallets table tbody');
+                                        index++;
+                                        
+                                    })
+                                    
+                                })
+                                .error(function( data ){
+                                    console.log("Error");
+                                })
+
+							return false;
+						});
+                        
+                        jQuery('#open_transfer').click(function(e){
+                           console.log("clicked");
+                        });
+
+                        
+					});
+				</script>
+			</td>
+		</tr>
+		<?php
+		return ob_get_clean();
+
+	}
 
     /**
      * All available blockchain icons
@@ -184,18 +307,27 @@ class WC_Gateway_Open extends WC_Payment_Gateway
 
         $paymentCurrency = $this->get_option('blockchains');
 
+        $dataToBeEncrypted = "723b79529c433a8ed714e8f2d67288a09faa0c75aba40a1968d2be65aee1c04f";
+        self::log('Data To Be Encrypted: ' . $dataToBeEncrypted);
+        $encrypt = $this->encrypt($dataToBeEncrypted, "password");
+        self::log('Encrypted Data: ' . $encrypt);
+        $decrypt = $this->decrypt($encrypt, "password");
+        self::log('Decrypted Data: ' . $decrypt);
+        
         // Create a new wallet request.
         $metadata = array(
             'amount' => strval($order->get_total()),
-            'orderId' => strval($order->get_id()),
             'orderKey' => $order->get_order_key(),
             'paymentCurrency' => $paymentCurrency,
             'productCurrency' => $order->get_currency(),
             'source' => 'woocommerce',
-            'test' => $this->testmode
+            'test' => $this->testmode,
+            'clientManaged' => $this->clientManaged,
+            'clientPassword' => $this->clientPassword,
         );
 
-        $result = Open_API_Handler::create_wallet($metadata);
+        $result = Open_API_Handler::get_wallet($metadata);
+        self::log('Get Wallet result: ' . json_encode($result, true));
 
         if (!$result[0]) {
             return array('result' => 'fail');
@@ -206,9 +338,10 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         $order->update_meta_data('_op_currency', $paymentCurrency);
         $order->save();
 
+        // apply_filters('process_payment_redirect', $order->get_checkout_payment_url(true), $order)
         return array(
-            'result' 	=> 'success',
-            'redirect'	=> $this->generate_open_url($order),
+            'result'     => 'success',
+            'redirect'    => $this->generate_open_url($order),
         );
     }
 
@@ -226,7 +359,7 @@ class WC_Gateway_Open extends WC_Payment_Gateway
             $address = $order->get_meta('_op_address');
 
             usleep(300000);
-            $result = Open_API_Handler::send_request('widget/transactions/address/' . $address);
+            $result = Open_API_Handler::send_request('widget/transactions/address/' . $address, "", [], "GET");
 
             if (!$result[0]) {
                 self::log('Failed to fetch order updates for: ' . $order->get_id());
@@ -281,13 +414,13 @@ class WC_Gateway_Open extends WC_Payment_Gateway
 
         $trimmedBody = trim(preg_replace('/\s+/', '', $request_body));
 
-        self::log('Incoming webhook body: '.$trimmedBody);
+        self::log('Incoming webhook body: ' . $trimmedBody);
 
         $timestamp = intval($request_headers['HTTP_X_OPEN_WEBHOOK_TIMESTAMP']);
 
-        if (abs($timestamp - time()) > 5 * MINUTE_IN_SECONDS) {
+        /*if (abs($timestamp - time()) > 5 * MINUTE_IN_SECONDS) {
             return false;
-        }
+        }*/
 
         $sig = $request_headers['HTTP_X_OPEN_WEBHOOK_SIGNATURE'];
         $secret = $this->get_option('secret_key');
@@ -359,26 +492,37 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         }
     }
 
-    public static function get_open_args( $order ) {
+    public static function get_open_args($order)
+    {
 
         $op_args = array(
             'amount'                => $order->get_total(),
             'orderId'               => $order->get_id(),
-            'currency' 		        => $order->get_currency(),
+            'currency'                 => $order->get_currency(),
         );
 
-        return apply_filters( 'woocommerce_op_args', $op_args );
+        return apply_filters('woocommerce_op_args', $op_args);
     }
 
     public static function generate_open_url($order): string
     {
-        if ( $order->get_status() != 'completed' ) {
+        if ($order->get_status() != 'completed') {
             $order->update_status('pending', 'Customer is being redirected to OpenPlatform...');
         }
 
-        $op_adr  = "https://api.openfuture.io/widget/payment/order/".$order->get_order_key()."?";
+        $op_adr  = "http://172.18.64.1:8080/widget/payment/order/" . $order->get_order_key() . "?";
         $op_args = self::get_open_args($order);
-        $op_adr .= http_build_query( $op_args, '', '&' );
+        $op_adr .= http_build_query($op_args, '', '&');
         return $op_adr;
+    }
+
+    public static function encrypt(string $data, string $password)
+    {
+        return wallet_encrypt($data, $password);
+    }
+
+    public static function decrypt($data, $password)
+    {
+        return wallet_decrypt($data, $password);
     }
 }

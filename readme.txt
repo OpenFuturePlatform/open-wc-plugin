@@ -4,13 +4,13 @@ Plugin URL: https://commerce.openfuture.io/
 Tags: open, payment, woo, woocommerce, ecommerce, bitcoin, ethereum, blockchain, crypto, cryptocurrency
 Requires at least: 3.0
 Requires PHP: 5.6
-Tested up to: 5.9
+Tested up to: 6.1.1
 Stable tag: 1.0.0
 License: GPLv2 or later
 
 == Description ==
 
-This plugin implements a payment gateway for WooCommerce to let buyers pay through Open Platform with Bitcoin, Ethereum and Binance on your WooCommerce store.
+A Payment Gateway for ecommerce applications utilizing blockchain infrastructure and cryptocurrencies
 
 == Installation ==
 
