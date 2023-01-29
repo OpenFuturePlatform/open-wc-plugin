@@ -1,10 +1,21 @@
 <?php
 
+
 /**
  * Sends API requests to Open Platform.
  */
 class Open_API_Handler
 {
+
+    /** @var string Open Platform API url. */
+    public static $api_url;
+
+    /** @var string Open Platform API application access key. */
+    public static $api_key;
+
+    /** @var string Open Platform API application secret key. */
+    public static $secret_key;
+
 
     /** @var string/array Log variable function. */
     public static $log;
@@ -21,14 +32,6 @@ class Open_API_Handler
         return call_user_func(self::$log, $message, $level);
     }
 
-    /** @var string Open Platform API url. */
-    public static $api_url = 'https://api.openfuture.io/public/api/v1/';
-
-    /** @var string Open Platform API application access key. */
-    public static $api_key;
-
-    /** @var string Open Platform API application secret key. */
-    public static $secret_key;
 
     /**
      * Get the response from an API request.
@@ -40,7 +43,7 @@ class Open_API_Handler
     public static function send_request(string $endpoint, string $hash, array $params = array(), string $method = 'GET'): array
     {
 
-        self::log('Open Platform Request Args for ' . $endpoint . ': ' . print_r($params, true));
+        //self::log('Open Platform Request Args for ' . $endpoint . ': ' . print_r($params, true));
         $args = array(
             'method' => $method,
             'headers' => array(
@@ -60,7 +63,7 @@ class Open_API_Handler
         $response = wp_remote_request(esc_url_raw($url), $args);
 
         if (is_wp_error($response)) {
-            self::log('WP response error: ' . $response->get_error_message());
+            self::log('WP response error: ' . $response->get_error_message(), 'error');
             return array(false, $response->get_error_message());
         } else {
             $result = json_decode($response['body'], true);
@@ -98,24 +101,6 @@ class Open_API_Handler
         $nonce = self::get_timestamp();
 
         $args = array(
-            'timestamp' => strval($nonce)
-        );
-
-        $sign = self::get_signature($args);
-
-        return self::send_request('wallet/process', $sign, $args, 'POST');
-    }
-
-     /**
-     * Get application wallets
-     * @param $metadata
-     * @return array
-     */
-    public static function get_wallet($metadata = null): array
-    {
-        $nonce = self::get_timestamp();
-
-        $args = array(
             'timestamp' => strval($nonce),
             'metadata' => $metadata
         );
@@ -123,6 +108,16 @@ class Open_API_Handler
         $sign = self::get_signature($args);
 
         return self::send_request('wallet/process', $sign, $args, 'POST');
+    }
+
+
+    /**
+     * Get application wallets
+     * @return array
+     */
+    public static function get_public_wallet(): array
+    {
+        return self::send_request('wallet/details', "", array(), 'GET');
     }
 
     public static function get_timestamp(): int
