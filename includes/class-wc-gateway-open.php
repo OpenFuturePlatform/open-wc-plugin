@@ -46,8 +46,8 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         $this->description = $this->get_option('description');
         $this->debug = 'yes' === $this->get_option('debug', 'no');
         $this->testmode = 'yes' === $this->get_option('testmode');
-        $this->clientManaged = 'yes' === $this->get_option('client_managed');
-        $this->clientPassword = $this->get_option('client_password');
+        // $this->clientManaged = 'yes' === $this->get_option('client_managed');
+        // $this->clientPassword = $this->get_option('client_password');
 
         self::$log_enabled = $this->debug;
 
@@ -124,17 +124,17 @@ class WC_Gateway_Open extends WC_Payment_Gateway
             ),
             'client_managed' => array(
                 'title'       => __('Customer Managed', 'woocommerce'),
-                'label'       => __('Enable encrypted password', 'open'),
+                'label'       => __('Enable customer managed addresses', 'open'),
                 'type'        => 'checkbox',
                 'default'     => 'yes',
                 'desc_tip'    => true,
             ),
-            'client_password' => array(
-                'title' => __('Master password', 'open'),
-                'type' => 'text',
-                'default' => '',
-                'description' => 'Client encryption password',
-            ),
+            // 'client_password' => array(
+            //     'title' => __('Master password', 'open'),
+            //     'type' => 'text',
+            //     'default' => '',
+            //     'description' => 'Client encryption password',
+            // ),
             'testmode' => array(
                 'title'       => __('Test mode', 'woocommerce'),
                 'label'       => __('Enable Test Mode', 'open'),
@@ -212,7 +212,7 @@ class WC_Gateway_Open extends WC_Payment_Gateway
             'source' => 'woocommerce',
             'test' => $this->testmode,
             'clientManaged' => empty($this->clientManaged) ? false : true,
-            'clientPassword' => $this->clientPassword,
+            //'clientPassword' => $this->clientPassword,
         );
 
         $result = Open_API_Handler::create_wallet($metadata);
@@ -227,7 +227,6 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         $order->update_meta_data('_op_currency', $paymentCurrency);
         $order->save();
 
-        // apply_filters('process_payment_redirect', $order->get_checkout_payment_url(true), $order)
         return array(
             'result'     => 'success',
             'redirect'   => $this->generate_open_url($order),
@@ -420,13 +419,4 @@ class WC_Gateway_Open extends WC_Payment_Gateway
         return $result;
     }
 
-    public static function encrypt(string $data, string $password)
-    {
-        return wallet_encrypt($data, $password);
-    }
-
-    public static function decrypt($data, $password)
-    {
-        return wallet_decrypt($data, $password);
-    }
 }

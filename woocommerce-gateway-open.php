@@ -27,9 +27,10 @@ if (!function_exists('oppg_init_gateway')) {
             require_once 'includes/class-wc-gateway-open.php';
             require_once 'includes/class-wc-gateway-api-handler.php';
             add_action('init', 'oppg_wc_register_blockchain_status');
+            add_action('admin_enqueue_scripts', 'oppg_scripts');
+            add_filter('script_loader_tag', 'moduleTypeScripts', 10, 2);
             add_filter('woocommerce_valid_order_statuses_for_payment', 'oppg_wc_status_valid_for_payment', 10, 2);
             add_action('open_check_orders', 'oppg_wc_check_orders');
-            add_action('wp_enqueue_scripts', 'oppg_scripts');
             add_filter('woocommerce_payment_gateways', 'oppg_wc_add_open_class');
             add_filter('wc_order_statuses', 'oppg_wc_add_status');
             add_action('woocommerce_admin_order_data_after_order_details', 'oppg_order_admin_meta_general');
@@ -61,24 +62,45 @@ function oppg_deactivation()
 
 register_deactivation_hook(__FILE__, 'oppg__deactivation');
 
+function moduleTypeScripts($tag, $handle)
+{
+    $tyype = wp_scripts()->get_data($handle, 'type');
+
+    if ($tyype) {
+        $tag = str_replace('src', 'type="' . esc_attr($tyype) . '" src', $tag);
+    }
+
+    return $tag;
+}
 
 function oppg_scripts()
 {
     wp_enqueue_script(
         'qrcode',
-        plugins_url('js/qrcode.min.js#deferload', __FILE__),
+        plugins_url('/js/qrcode.min.js#deferload', __FILE__),
         array('jquery')
     );
     wp_enqueue_script(
         'clipboard',
-        plugins_url('js/clipboard.min.js#deferload', __FILE__),
+        plugins_url('/js/clipboard.min.js#deferload', __FILE__),
         array('jquery')
     );
     wp_enqueue_script(
         'sweetalert',
-        plugins_url('js/sweetalert.min.js#deferload', __FILE__),
+        'https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js',
         array('jquery')
     );
+    wp_enqueue_script(
+        'open',
+        plugins_url('/js/open.js', __FILE__),
+        array('jquery')
+    );
+    wp_enqueue_script(
+        'crypto',
+        'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js',
+        array('open')
+    );
+
 }
 
 // WooCommerce
@@ -227,6 +249,7 @@ function display_open_wallet_list_tab_content()
             <th>' . __('Blockchain', 'woocommerce') . '</th>
             <th>' . __('Address', 'woocommerce') . '</th>
             <th>' . __('Rate', 'woocommerce') . '</th>
+            <th>' . __('Actions', 'woocommerce') . '</th>
             </tr></thead>
             <tbody>';
 
@@ -235,16 +258,23 @@ function display_open_wallet_list_tab_content()
                 $table_inner_display_[$index]  .= '<tr>
                 <td>' . esc_html($address['blockchain']) . '</td>
                 <td><a href="' . esc_html($url) . 'widget/trx/address/' . $address['address'] . '" target="_blank">' . esc_attr($address['address']) . '</a></td>
-                <td>' . esc_html($address['rate']) . '</td>
-                </tr>';
+                <td>' . esc_html($address['rate']) . '</td>';
+                if($address['encrypted'] != ''){
+                    $table_inner_display_[$index]  .=
+                    '<td>     
+                        <span id="btnDialog" class="encrypt button-secondary" onclick="myFunction(\'' . $address['encrypted'] . '\')">Decrypt</span>
+                    </td>';
+                }
+                
+                $table_inner_display_[$index]  .='</tr>';
             }
 
             $table_inner_display_[$index]  .= '</tbody></table>';
 
             $table_display_row  .= '<tr>
-            <td>' . esc_html($order['orderKey']) . '</td>
+            <td>' . esc_html($order['order_key']) . '</td>
             <td>' . esc_html($order['amount'] . ' ' . $order['currency']) . '</td>
-            <td>' . esc_html($order['totalPaid'] . ' ' . $order['currency']) . '</td>
+            <td>' . esc_html($order['total_paid'] . ' ' . $order['currency']) . '</td>
             <td>' . $table_inner_display_[$index] . '</td>
             </tr>';
 

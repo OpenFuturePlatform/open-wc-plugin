@@ -43,12 +43,13 @@ class Open_API_Handler
     public static function send_request(string $endpoint, string $hash, array $params = array(), string $method = 'GET'): array
     {
 
-        //self::log('Open Platform Request Args for ' . $endpoint . ': ' . print_r($params, true));
+        self::log('Open Platform Request Args for ' . $endpoint . ': ' . print_r($params, true));
         $args = array(
             'method' => $method,
             'headers' => array(
                 'X-API-KEY' => self::$api_key,
                 'X-API-SIGNATURE' => $hash,
+                'X-API-TIMESTAMP' => self::get_timestamp(),
                 'Content-Type' => 'application/json'
             )
         );
@@ -98,10 +99,7 @@ class Open_API_Handler
      */
     public static function create_wallet($metadata = null): array
     {
-        $nonce = self::get_timestamp();
-
         $args = array(
-            'timestamp' => strval($nonce),
             'metadata' => $metadata
         );
 
@@ -118,6 +116,7 @@ class Open_API_Handler
     public static function get_public_wallet(): array
     {
         return self::send_request('wallet/details', "", array(), 'GET');
+
     }
 
     public static function get_timestamp(): int

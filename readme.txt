@@ -1,7 +1,7 @@
 === Open Platform Payment Gateway for WooCommerce ===
 Contributors: open platform
 Plugin URL: https://commerce.openfuture.io/
-Tags: open, payment, woo, woocommerce, ecommerce, bitcoin, ethereum, blockchain, crypto, cryptocurrency
+Tags: payment, woocommerce, blockchain payment, ecommerce, bitcoin, ethereum, blockchain, crypto, cryptocurrency
 Requires at least: 3.0
 Requires PHP: 5.6
 Tested up to: 6.1.1
