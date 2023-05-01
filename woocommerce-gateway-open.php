@@ -272,9 +272,9 @@ function display_open_wallet_list_tab_content()
             $table_inner_display_[$index]  .= '</tbody></table>';
 
             $table_display_row  .= '<tr>
-            <td>' . esc_html($order['order_key']) . '</td>
+            <td>' . esc_html($order['orderKey']) . '</td>
             <td>' . esc_html($order['amount'] . ' ' . $order['currency']) . '</td>
-            <td>' . esc_html($order['total_paid'] . ' ' . $order['currency']) . '</td>
+            <td>' . esc_html($order['totalPaid'] . ' ' . $order['currency']) . '</td>
             <td>' . $table_inner_display_[$index] . '</td>
             </tr>';
 
